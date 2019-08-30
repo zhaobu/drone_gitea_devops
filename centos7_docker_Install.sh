@@ -1,10 +1,10 @@
 # 本脚本只适用于centos7安装最新版docker-ce,会替换系统镜像源为阿里云镜像
 # switch mirrors.aliyun
-mv /etc/yum.repos.d/CentOS-Base.repo /etc/yum.repos.d/CentOS-Base.repo.bak
-curl -o /etc/yum.repos.d/CentOS-Base.repo http://mirrors.aliyun.com/repo/Centos-7.repo
-yum clean all
-yum makecache
-yum install -y yum-plugin-fastestmirror
+# mv /etc/yum.repos.d/CentOS-Base.repo /etc/yum.repos.d/CentOS-Base.repo.bak
+# curl -o /etc/yum.repos.d/CentOS-Base.repo http://mirrors.aliyun.com/repo/Centos-7.repo
+# yum clean all
+# yum makecache
+# yum install -y yum-plugin-fastestmirror
 # Uninstall old versions
 yum remove docker \
     docker-client \
@@ -22,3 +22,6 @@ sed -i 's+download.docker.com+mirrors.tuna.tsinghua.edu.cn/docker-ce+' /etc/yum.
 # Install the latest version of Docker Engine - Community and containerd
 yum makecache fast
 yum install -y docker-ce docker-ce-cli containerd.io
+# install docker-compose
+sudo curl -L "https://github.com/docker/compose/releases/download/1.24.1/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+sudo chmod +x /usr/local/bin/docker-compose
