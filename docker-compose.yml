@@ -1,0 +1,70 @@
+version: "3.7"
+services:
+# 使用 nginx 来做对外的服务代理，不要让 drone-server 直接对外提供服务
+  nginx:
+    image: nginx:alpine
+    container_name: drone_nginx
+    ports:
+      - "8010:80"
+    restart: always
+    networks:
+      - dronenet
+
+# drone 默认的数据存储是sqllite3，这里我们使用MySQL
+  mysql:
+    image: mysql:5.7
+    restart: always
+    container_name: drone_mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD=root_password
+      - MYSQL_DATABASE=drone
+      - MYSQL_USER=drone
+      - MYSQL_PASSWORD=drone_password
+    networks:
+      - dronenet
+    volumes:
+      - /path/to/conf/my.cnf:/etc/mysql/my.cnf:rw
+      - /path/to/data:/var/lib/mysql/:rw
+      - /path/to/logs:/var/log/mysql/:rw
+  
+  # 中央Drone服务器
+  drone-server:
+    image: drone/drone:latest #不要用latest,latest并非稳定版本
+    container_name: dronetest_server
+    networks: 
+      - dronenet
+    volumes:
+      - ${DRONE_DATA}:/var/lib/drone/:rw
+      - /var/run/docker.sock:/var/run/docker.sock:rw
+    restart: always
+    environment:
+      - DRONE_DEBUG=true
+      - DRONE_DATABASE_DATASOURCE=drone:drone_password@tcp(drone_mysql:3306)/drone?parseTime=true   #mysql配置，要与上边mysql容器中的配置一致
+      - DRONE_DATABASE_DRIVER=mysql
+      - DRONE_GITHUB_SERVER=https://github.com
+      - DRONE_GITHUB_CLIENT_ID=${Your-Github-Client-Id}  #Github Client ID
+      - DRONE_GITHUB_CLIENT_SECRET=${Your-Github-Client-Secret} #Github Client Secret
+      - DRONE_RUNNER_CAPACITY=2
+      - DRONE_RPC_SECRET=YOU_KEY_ALQU2M0KdptXUdTPKcEw  #RPC秘钥
+      - DRONE_SERVER_PROTO=http			#这个配置决定了你激活时仓库中的webhook地址的proto
+      - DRONE_SERVER_HOST=dronetest.yiranzai.top
+      - DRONE_USER_CREATE=username:yiranzai,admin:true  #管理员账号，一般是你github用户名
+  
+  # 接收来自中央Drone服务器的指令以执行构建管道
+  drone-agent:
+    image: drone/agent:latest
+    container_name: dronetest_agent
+    restart: always
+    networks: 
+      - dronenet
+    depends_on:
+      - drone-server  #依赖drone_server，并在其后启动
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:rw
+    environment:
+      - DRONE_RPC_SERVER=http://drone_server	#drone用的http请求包，url一定要写上协议才能支持
+      - DRONE_RPC_SECRET=YOU_KEY_ALQU2M0KdptXUdTPKcEw  #RPC秘钥，要与drone_server中的一致
+      - DRONE_DEBUG=true
+
+networks:
+  dronenet:
