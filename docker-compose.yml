@@ -1,6 +1,118 @@
+# version: "3.7"
+# services:
+#   nginx:
+#     image: nginx:alpine
+#     container_name: dronetest_nginx
+#     ports:
+#       - "80:80"
+#     restart: always
+#     networks:
+#       - dronenet
+#   mysql:
+#     image: mysql:5.7
+#     restart: always
+#     container_name: dronetest_mysql
+#     environment:
+#       - MYSQL_ROOT_PASSWORD=root_password
+#       - MYSQL_DATABASE=drone
+#       - MYSQL_USER=drone
+#       - MYSQL_PASSWORD=drone_password
+#     networks:
+#       - dronenet
+#     volumes:
+#       - ./mysql/conf/my.cnf:/etc/mysql/my.cnf:rw
+#       - ./mysql/data:/var/lib/mysql/:rw
+#       - ./mysql/logs:/var/log/mysql/:rw
+#   vault:
+#     image: vault:latest
+#     container_name: vault
+#     restart: always
+#     networks:
+#       - dronenet
+#     volumes:
+#       - ./vault/file:/vault/file
+#       - ./vault/config:/vault/config
+#       - ./vault/logs:/vault/logs
+#     cap_add:
+#       - IPC_LOCK
+#     environment:
+#       - VAULT_ADDR=http://127.0.0.1:8200
+#     command: vault server -config=/vault/config/local.json #这句非常重要，一定要替换原有的Dockerfile中的CMD,不然会自动初始化，生成的数据都在docker logs中，不说你肯定找不到。dog.jpg，所以我选择手动初始化
+#   memcache:
+#     image: memcached:alpine
+#     container_name: test_memcache
+#     restart: always
+#     networks:
+#       - dronenet
+#   gitea:
+#     image: gitea/gitea:latest
+#     restart: always
+#     container_name: test_gitea
+#     networks:
+#       - dronenet
+#     ports:
+#       - "22:22"			#git服务对外使用22端口会更加方便
+#     volumes:
+#       - /var/lib/gitea:/data:rw	#gitea的data数据应该做持久化，映射到宿主机磁盘上
+#   drone-server:
+#     image: drone/drone:latest #不要用latest,latest并非稳定版本
+#     container_name: dronetest_server
+#     networks: 
+#       - dronenet
+#     volumes:
+#       - ${DRONE_DATA}:/var/lib/drone/:rw
+#       - /var/run/docker.sock:/var/run/docker.sock:rw
+#     restart: always
+#     environment:
+#       - DRONE_DEBUG=true
+#       - DRONE_DATABASE_DATASOURCE=drone:drone_password@tcp(dronetest_mysql:3306)/drone?parseTime=true   #mysql配置，要与上边mysql容器中的配置一致
+#       - DRONE_DATABASE_DRIVER=mysql
+#       - DRONE_GITEA_SKIP_VERIFY=false
+#       - DRONE_GITEA_SERVER=http://test_gitea:3000
+#       - DRONE_GIT_ALWAYS_AUTH=false
+#       - DRONE_RUNNER_CAPACITY=2
+#       - DRONE_RPC_SECRET=c48913e41c401373d50bab83599ce1cc  #RPC秘钥
+#       - DRONE_SERVER_PROTO=http			#这个配置决定了你激活时仓库中的webhook地址的proto
+#       - DRONE_SERVER_HOST=cygame.com
+#       - DRONE_USER_CREATE=username:yiranzai,admin:true  #管理员账号，是你想要作为管理员的Gitea用户名
+#   drone-vault:
+#     image: drone/vault
+#     container_name: dronetest_vault
+#     restart: always
+#     networks:
+#       - dronenet
+#     environment:
+#       - SECRET_KEY=7890bcce69bb685a9a424767fe9d1be1	 #和drone-agent通信的加密
+#       - DEBUG=true									
+#       - VAULT_ADDR=http://vault:8200
+#       - VAULT_TOKEN_RENEWAL=84h
+#       - VAULT_TOKEN_TTL=168h
+#       - VAULT_TOKEN=s.mx4KQycrFAfiaHIuPnNLhFCy		#这里不要用root token,用上边生成的只读token
+#   drone-agent:
+#     image: drone/agent:latest
+#     container_name: dronetest_agent
+#     restart: always
+#     networks:
+#       - dronenet
+#     depends_on:
+#       - drone-server
+#     volumes:
+#       - /var/run/docker.sock:/var/run/docker.sock:rw
+#     environment:
+#       - DRONE_SECRET_SECRET=7890bcce69bb685a9a424767fe9d1be1
+#       - DRONE_SECRET_ENDPOINT=http://dronetest_vault:3000
+#       - DRONE_RPC_SERVER=http://dronetest_server
+#       - DRONE_RPC_SECRET=c48913e41c401373d50bab83599ce1cc
+#       - DRONE_DEBUG=true
+#       - DRONE_LOGS_DEBUG=true
+#       - DRONE_LOGS_PRETTY=true
+#       - DRONE_LOGS_NOCOLOR=false
+# networks:
+#   dronenet:
+
+
 version: "3.7"
 services:
-# 使用 nginx 来做对外的服务代理，不要让 drone-server 直接对外提供服务
   nginx:
     image: nginx:alpine
     container_name: drone_nginx
@@ -10,9 +122,8 @@ services:
     networks:
       - dronenet
 
-# drone 默认的数据存储是sqllite3，这里我们使用MySQL
   mysql:
-    image: mysql:5.7
+    image: mysql
     restart: always
     container_name: drone_mysql
     environment:
@@ -23,18 +134,17 @@ services:
     networks:
       - dronenet
     volumes:
-      - /path/to/conf/my.cnf:/etc/mysql/my.cnf:rw
-      - /path/to/data:/var/lib/mysql/:rw
-      - /path/to/logs:/var/log/mysql/:rw
-  
-  # 中央Drone服务器
+      - ./mysql/conf/my.cnf:/etc/mysql/my.cnf:rw
+      - ./mysql/data:/var/lib/mysql/:rw
+      - ./mysql/logs:/var/log/mysql/:rw
+
   drone-server:
     image: drone/drone:latest #不要用latest,latest并非稳定版本
     container_name: dronetest_server
     networks: 
       - dronenet
     volumes:
-      - ${DRONE_DATA}:/var/lib/drone/:rw
+      - ./drone_data:/var/lib/drone/:rw
       - /var/run/docker.sock:/var/run/docker.sock:rw
     restart: always
     environment:
@@ -42,15 +152,13 @@ services:
       - DRONE_DATABASE_DATASOURCE=drone:drone_password@tcp(drone_mysql:3306)/drone?parseTime=true   #mysql配置，要与上边mysql容器中的配置一致
       - DRONE_DATABASE_DRIVER=mysql
       - DRONE_GITHUB_SERVER=https://github.com
-      - DRONE_GITHUB_CLIENT_ID=${Your-Github-Client-Id}  #Github Client ID
-      - DRONE_GITHUB_CLIENT_SECRET=${Your-Github-Client-Secret} #Github Client Secret
+      - DRONE_GITHUB_CLIENT_ID=b49035f644315c2cf71a  #Github Client ID
+      - DRONE_GITHUB_CLIENT_SECRET=4c45343ac59225fb7f823b6fdc51f9c3fbfd6fcc #Github Client Secret
       - DRONE_RUNNER_CAPACITY=2
-      - DRONE_RPC_SECRET=YOU_KEY_ALQU2M0KdptXUdTPKcEw  #RPC秘钥
-      - DRONE_SERVER_PROTO=http			#这个配置决定了你激活时仓库中的webhook地址的proto
-      - DRONE_SERVER_HOST=dronetest.yiranzai.top
-      - DRONE_USER_CREATE=username:yiranzai,admin:true  #管理员账号，一般是你github用户名
-  
-  # 接收来自中央Drone服务器的指令以执行构建管道
+      - DRONE_RPC_SECRET=c48913e41c401373d50bab83599ce1cc  #RPC秘钥
+      - DRONE_SERVER_PROTO=http   #这个配置决定了你激活时仓库中的webhook地址的proto
+      - DRONE_SERVER_HOST=drone.cygame.com
+      - DRONE_USER_CREATE=username:zhaobu,admin:true  #管理员账号，一般是你github用户名
   drone-agent:
     image: drone/agent:latest
     container_name: dronetest_agent
@@ -62,9 +170,9 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:rw
     environment:
-      - DRONE_RPC_SERVER=http://drone_server	#drone用的http请求包，url一定要写上协议才能支持
-      - DRONE_RPC_SECRET=YOU_KEY_ALQU2M0KdptXUdTPKcEw  #RPC秘钥，要与drone_server中的一致
+      - DRONE_RPC_HOST=drone.cygame.com #drone用的http请求包，url一定要写上协议才能支持
+      - DRONE_RPC_SECRET=c48913e41c401373d50bab83599ce1cc  #RPC秘钥，要与drone_server中的一致
       - DRONE_DEBUG=true
-
+      - DRONE_SERVER_PROTO=http #这个配置决定了你激活时仓库中的webhook地址的proto
 networks:
   dronenet:
