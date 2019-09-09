@@ -1,0 +1,2 @@
+        echo 'CREATE DATABASE IF NOT EXISTS drone; CREATE DATABASE IF NOT EXISTS gitea;' > /docker-entrypoint-initdb.d/init.sql;
+        /usr/local/bin/docker-entrypoint.sh --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci

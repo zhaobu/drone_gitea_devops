@@ -11,4 +11,6 @@
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
 
-mysql/data
+drone_mysql/data
+gitea_postgres/data
+gitea_server/data

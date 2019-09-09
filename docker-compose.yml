@@ -1,4 +1,9 @@
-version: "3.7"
+version: '3.7'
+
+networks:
+  dronenet:
+    name: dronenet
+
 services:
   nginx:
     image: nginx:alpine
@@ -10,70 +15,115 @@ services:
       - dronenet
     volumes:
       - ./nginx/conf:/etc/nginx/conf.d:rw
-      
-  mysql:
+        
+  gitea_server:
+    image: gitea/gitea:latest
+    ports:
+      - 3000:3000
+    volumes:
+      - ./gitea_server/data:/data
+    restart: always
+    container_name: gitea_server
+    environment:
+      - USER_UID=1000
+      - USER_GID=1000
+      - HTTP_PORT=3000
+      - DB_TYPE=postgres
+      - DB_HOST=gitea_postgres:5432
+      - DB_USER=${POSTGRES_USER}
+      - DB_NAME=${POSTGRES_DB}
+      - DB_PASSWD={POSTGRES_PASSWORD}
+      - APP_NAME="DROG (gitea + drone) test"
+      # this exposes to end users
+      - ROOT_URL=http://${HOST}:3000
+    networks:
+      - dronenet
+
+  gitea_postgres:
+    image: postgres:alpine
+    ports:
+      - 5432:5432
+    restart: always
+    container_name: gitea_postgres
+    volumes:
+      - ./gitea_postgres/data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+    networks:
+      - dronenet
+
+  drone_mysql:
     image: mysql
     restart: always
     container_name: drone_mysql
     ports:
       - 3306:3306
     environment:
-      - MYSQL_ROOT_PASSWORD=root_password
-      - MYSQL_DATABASE=drone
-      - MYSQL_USER=drone
-      - MYSQL_PASSWORD=drone_password
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+      - MYSQL_DATABASE=${MYSQL_DATABASE}
+      - MYSQL_USER=${MYSQL_USER}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
     networks:
       - dronenet
     volumes:
-      - ./mysql/conf/my.cnf:/etc/mysql/my.cnf:rw
-      - ./mysql/data:/var/lib/mysql/:rw
-      - ./mysql/logs:/var/log/mysql/:rw
+      - ./drone_mysql/conf/my.cnf:/etc/mysql/my.cnf:rw
+      - ./drone_mysql/data:/var/lib/mysql/:rw
+      - ./drone_mysql/logs:/var/log/mysql/:rw
 
-  drone-server:
-    image: drone/drone:latest #不要用latest,latest并非稳定版本
-    container_name: dronetest_server
-    networks: 
-      - dronenet
-    volumes:
-      # - ./drone_server/drone:/var/lib/drone/:rw
-      - ./drone_server/data:/data:rw
-      - /var/run/docker.sock:/var/run/docker.sock:rw
-    restart: always
+  drone_server:
+    image: drone/drone
+    container_name: drone_server
     ports:
-      - 8000:80
+      - 8000:80 # drone comtainer serves via port 80, we expose to end users via port 8381
+      # - 9000:9000
+      # - 8443:443
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./drone_server/data:/data:rw
+      - ./drone_server/drone:/var/lib/drone:rw
+    restart: always
     environment:
       # db Config
-      - DRONE_DATABASE_DATASOURCE=drone:drone_password@tcp(drone_mysql:3306)/drone?parseTime=true   #mysql配置，要与上边mysql容器中的配置一致
-      - DRONE_DATABASE_DRIVER=mysql
-      - DRONE_SERVER_HOST=192.168.0.90:8000
-      - DRONE_SERVER_PROTO=http   #这个配置决定了你激活时仓库中的webhook地址的proto
+      - DRONE_DATABASE_DATASOURCE=${MYSQL_DATABASE}:${MYSQL_PASSWORD}@tcp(drone_mysql:3306)/drone?parseTime=true   #mysql配置，要与上边mysql容器中的配置一致
+      - DRONE_DATABASE_DRIVER=mysql 
+
       - DRONE_TLS_AUTOCERT=false
-      - DRONE_RPC_SECRET=c48913e41c401373d50bab83599ce1cc  #RPC秘钥
+
+      # gitea Config
       - DRONE_AGENTS_ENABLED=true
-      - DRONE_USER_CREATE=username:zhaobu,admin:true  #管理员账号，一般是你github用户名
-        # GitHub Config
-      - DRONE_GITHUB_SERVER=https://github.com
-      - DRONE_GITHUB_CLIENT_ID=b49035f644315c2cf71a  #Github Client ID
-      - DRONE_GITHUB_CLIENT_SECRET=4c45343ac59225fb7f823b6fdc51f9c3fbfd6fcc #Github Client Secret
+      - DRONE_GITEA_SERVER=http://${HOST}:3000 # this is internal communication with gitea server on the same network
+      - DRONE_GITEA_CLIENT_ID=${DRONE_GITEA_CLIENT_ID}
+      - DRONE_GITEA_CLIENT_SECRET=${DRONE_GITEA_CLIENT_SECRET}
+      - DRONE_GIT_ALWAYS_AUTH=true
+      - DRONE_RPC_SECRET=${DRONE_RPC_SECRET}  #RPC秘钥
+      - DRONE_SERVER_HOST=${HOST}:8000
+      - DRONE_SERVER_PROTO=http
+
+      # droneclient Config
+
+      # dronelog
       - DRONE_LOGS_PRETTY=true
       - DRONE_LOGS_COLOR=true
       - DRONE_LOGS_TEXT=true
-  drone-agent:
-    image: drone/agent:latest
-    container_name: dronetest_agent
-    restart: always
-    networks: 
-      - dronenet
     depends_on:
-      - drone-server  #依赖drone_server，并在其后启动
+      - gitea_server
+    networks:
+      - dronenet
+
+  droneagent:
+    image: drone/agent:latest
+    command: agent
+    restart: always
+    depends_on:
+      - drone_server
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:rw
+      - /var/run/docker.sock:/var/run/docker.sock
     environment:
-      - DRONE_RPC_SERVER=http://drone-server
-      - DRONE_RPC_HOST=192.168.0.90:8000 #drone用的http请求包，url一定要写上协议才能支持
-      - DRONE_RPC_SECRET=c48913e41c401373d50bab83599ce1cc  #RPC秘钥，要与drone_server中的一致
-      - DRONE_DEBUG=true
-      # - DRONE_SERVER_PROTO=http #这个配置决定了你激活时仓库中的webhook地址的proto
+      - DRONE_RPC_PROTO=https
+      - DRONE_RPC_HOST=${HOST}:9000
+      - DRONE_RPC_SECRET=${DRONE_RPC_SECRET}  #RPC秘钥，要与drone_server中的一致
       - DRONE_RUNNER_CAPACITY=1
-networks:
-  dronenet:
+    networks:
+      - dronenet
