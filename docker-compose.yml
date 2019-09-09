@@ -1,8 +1,11 @@
-version: '3.7'
+version: "3.7"
 
 networks:
   dronenet:
     name: dronenet
+volumes:
+  gitea_postgres_data:
+    name: gitea_postgres_data
 
 services:
   nginx:
@@ -15,13 +18,13 @@ services:
       - dronenet
     volumes:
       - ./nginx/conf:/etc/nginx/conf.d:rw
-        
+
   gitea_server:
     image: gitea/gitea:latest
     ports:
       - 3000:3000
       # 必须映射22端口,不然只能使用http cloen仓库
-      - "3022:22" 
+      - "3022:22"
     volumes:
       - ./gitea_server/data:/data
     restart: always
@@ -48,7 +51,9 @@ services:
     restart: always
     container_name: gitea_postgres
     volumes:
-      - ./gitea_postgres/data:/var/lib/postgresql/data
+      # - ./gitea_postgres/data:/var/lib/postgresql/data:rw
+      - gitea_postgres_data:/var/lib/postgresql/data:rw
+
     environment:
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
@@ -88,20 +93,20 @@ services:
     restart: always
     environment:
       # db Config
-      - DRONE_DATABASE_DATASOURCE=${MYSQL_DATABASE}:${MYSQL_PASSWORD}@tcp(drone_mysql:3306)/drone?parseTime=true   #mysql配置，要与上边mysql容器中的配置一致
-      - DRONE_DATABASE_DRIVER=mysql 
+      - DRONE_DATABASE_DATASOURCE=${MYSQL_DATABASE}:${MYSQL_PASSWORD}@tcp(drone_mysql:3306)/drone?parseTime=true #mysql配置，要与上边mysql容器中的配置一致
+      - DRONE_DATABASE_DRIVER=mysql
 
       - DRONE_TLS_AUTOCERT=false
 
       # gitea Config
-      - DRONE_AGENTS_ENABLED=true
+      - DRONE_AGENTS_ENABLED=false
       - DRONE_GITEA_SERVER=http://${HOST}:3000 # this is internal communication with gitea server on the same network
       - DRONE_GITEA_CLIENT_ID=${DRONE_GITEA_CLIENT_ID}
       - DRONE_GITEA_CLIENT_SECRET=${DRONE_GITEA_CLIENT_SECRET}
-      - DRONE_RPC_SECRET=${DRONE_RPC_SECRET}  #RPC秘钥
+      - DRONE_RPC_SECRET=${DRONE_RPC_SECRET} #RPC秘钥
       - DRONE_SERVER_HOST=${HOST}:8080
       - DRONE_SERVER_PROTO=http
-
+      - DRONE_RUNNER_CAPACITY=3
       # droneclient Config
 
       # dronelog
@@ -114,19 +119,18 @@ services:
       - gitea_server
     networks:
       - dronenet
-
-  droneagent:
-    image: drone/agent:latest
-    command: agent
-    restart: always
-    depends_on:
-      - drone_server
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-    environment:
-      - DRONE_RPC_PROTO=http
-      - DRONE_RPC_HOST=drone_server:9000
-      - DRONE_RPC_SECRET=${DRONE_RPC_SECRET}  #RPC秘钥，要与drone_server中的一致
-      - DRONE_RUNNER_CAPACITY=1
-    networks:
-      - dronenet
+  # droneagent:
+  #   image: drone/agent:latest
+  #   restart: always
+  #   depends_on:
+  #     - drone_server
+  #   volumes:
+  #     # - /var/run/docker.sock:/var/run/docker.sock
+  #     - //./pipe/docker_engine://./pipe/docker_engine
+  #   environment:
+  #     - DRONE_RPC_PROTO=http
+  #     - DRONE_RPC_HOST=drone_server:9000
+  #     - DRONE_RPC_SECRET=${DRONE_RPC_SECRET} #RPC秘钥，要与drone_server中的一致
+  #     - DRONE_RUNNER_CAPACITY=2
+  #   networks:
+  #     - dronenet
