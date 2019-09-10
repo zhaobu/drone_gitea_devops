@@ -3,18 +3,22 @@ version: '3.7'
 networks:
   dronenet:
     name: dronenet
-
+volumes:
+  portainerdata:
+    name: portainerdata
 services:
   nginx:
     image: nginx:alpine
     container_name: drone_nginx
     ports:
-      - "8010:80"
+      - "80:80"
     restart: always
     networks:
       - dronenet
     volumes:
       - ./nginx/conf:/etc/nginx/conf.d:rw
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./nginx/hosts:/etc/hosts:rw
         
   gitea_server:
     image: gitea/gitea:latest
@@ -116,8 +120,9 @@ services:
     networks:
       - dronenet
 
-  droneagent:
+  drone_agent:
     image: drone/agent:latest
+    container_name: drone_agent
     restart: always
     depends_on:
       - drone_server
@@ -132,3 +137,14 @@ services:
       - DRONE_LOGS_DEBUG=true
     networks:
       - dronenet
+      
+# docker 可视化管理
+  portainer:                         
+    image: portainer/portainer:latest
+    container_name: portainer
+    restart: always
+    ports:         
+      - 9910:9000                              
+    volumes:                                     
+      - /var/run/docker.sock:/var/run/docker.sock      
+      - portainerdata:/data
