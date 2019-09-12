@@ -27,8 +27,9 @@ services:
     container_name: nps_server
     restart: always
     ports:         
-      - 2140:8080                              
-      - 2141:8284                              
+      - 9911:8080                              
+      - 9912:8284                              
+      - 9913:8024                              
     networks:
       - docker_base_service     
       
