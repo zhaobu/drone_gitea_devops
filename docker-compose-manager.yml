@@ -31,5 +31,7 @@ services:
       - 9912:8284                              
       - 9913:8024                              
     networks:
-      - docker_base_service     
+      - docker_base_service   
+    volumes:                                     
+      - ./nps_server/conf/nps.conf:/nps/conf/nps.conf             
       
