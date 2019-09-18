@@ -4,7 +4,7 @@
 # curl -o /etc/yum.repos.d/CentOS-Base.repo http://mirrors.aliyun.com/repo/Centos-7.repo
 # yum clean all
 # yum makecache
-## yum -y update 
+# yum -y update 
 # yum install -y yum-plugin-fastestmirror
 # Uninstall old versions
 yum remove docker \
@@ -24,5 +24,11 @@ sed -i 's+download.docker.com+mirrors.tuna.tsinghua.edu.cn/docker-ce+' /etc/yum.
 yum makecache fast
 yum install -y docker-ce docker-ce-cli containerd.io
 # install docker-compose
-sudo curl -L "https://github.com/docker/compose/releases/download/1.24.1/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-sudo chmod +x /usr/local/bin/docker-compose
+curl -L "https://github.com/docker/compose/releases/download/1.24.1/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+chmod +x /usr/local/bin/docker-compose
+
+#update git
+yum install -y https://centos7.iuscommunity.org/ius-release.rpm
+yum erase -y git
+yum install -y epel-release 
+yum install -y git2u
