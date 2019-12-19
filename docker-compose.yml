@@ -1,31 +1,33 @@
-version: '3.7'
+version: "3.7"
 
 networks:
   dronenet:
     name: dronenet
-volumes:
-  portainerdata:
-    name: portainerdata
+# volumes:
+#   portainerdata:
+#     name: portainerdata
+
 services:
-  nginx:
-    image: nginx:alpine
-    container_name: drone_nginx
-    ports:
-      - "80:80"
-    restart: always
-    networks:
-      - dronenet
-    volumes:
-      - ./nginx/conf:/etc/nginx/conf.d:rw
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
-      - ./nginx/hosts:/etc/hosts:rw
-        
+  # nginx:
+  #   image: nginx:alpine
+  #   container_name: drone_nginx
+  #   ports:
+  #     - "8080:80"
+  #   restart: always
+  #   networks:
+  #     - dronenet
+  #   volumes:
+  #     - ./nginx/conf:/etc/nginx/conf.d:rw
+  #     - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+  #     - ./nginx/hosts:/etc/hosts:rw
+
+  # gitea 服务
   gitea_server:
     image: gitea/gitea:latest
     ports:
       - 3000:3000
       # 必须映射22端口,不然只能使用http cloen仓库
-      - "3022:22" 
+      - "3022:22"
     volumes:
       - ./gitea_server/data:/data
       - ./gitea_server/conf/app.ini:/data/gitea/conf/app.ini
@@ -44,12 +46,13 @@ services:
       # this exposes to end users
       - ROOT_URL=http://${HOST}:3000
     networks:
-      - dronenet
+      dronenet:
 
+  # gitea 可以用postgres也可以用mysql
   gitea_postgres:
     image: postgres:alpine
-    ports:
-      - 5432:5432
+    # ports:
+    #   - 5432:5432
     restart: always
     container_name: gitea_postgres
     volumes:
@@ -59,32 +62,33 @@ services:
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - POSTGRES_DB=${POSTGRES_DB}
     networks:
-      - dronenet
+      dronenet:
 
+  # drone使用mysql
   drone_mysql:
     image: mysql
     restart: always
     container_name: drone_mysql
-    ports:
-      - 3306:3306
+    # ports:
+    #   - 3306:3306
     environment:
       - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
       - MYSQL_DATABASE=${MYSQL_DATABASE}
       - MYSQL_USER=${MYSQL_USER}
       - MYSQL_PASSWORD=${MYSQL_PASSWORD}
     networks:
-      - dronenet
+      dronenet:
     volumes:
       - ./drone_mysql/conf/my.cnf:/etc/mysql/my.cnf:rw
       - ./drone_mysql/data:/var/lib/mysql/:rw
       - ./drone_mysql/logs:/var/log/mysql/:rw
 
+  # drone 服务端
   drone_server:
     image: drone/drone
     container_name: drone_server
     ports:
       - 8080:80 # drone comtainer serves via port 80, we expose to end users via port 8381
-      - 9000:9000
       # - 8443:443
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
@@ -93,20 +97,21 @@ services:
     restart: always
     environment:
       # db Config
-      - DRONE_DATABASE_DATASOURCE=${MYSQL_DATABASE}:${MYSQL_PASSWORD}@tcp(drone_mysql:3306)/drone?parseTime=true   #mysql配置，要与上边mysql容器中的配置一致
-      - DRONE_DATABASE_DRIVER=mysql 
+      - DRONE_DATABASE_DATASOURCE=${MYSQL_DATABASE}:${MYSQL_PASSWORD}@tcp(drone_mysql:3306)/drone?parseTime=true #mysql配置，要与上边mysql容器中的配置一致
+      - DRONE_DATABASE_DRIVER=mysql
 
       - DRONE_TLS_AUTOCERT=false
 
       # gitea Config
-      - DRONE_AGENTS_ENABLED=true
+      # - DRONE_AGENTS_ENABLED=true
       - DRONE_GITEA_SERVER=http://${HOST}:3000 # this is internal communication with gitea server on the same network
       - DRONE_GITEA_CLIENT_ID=${DRONE_GITEA_CLIENT_ID}
       - DRONE_GITEA_CLIENT_SECRET=${DRONE_GITEA_CLIENT_SECRET}
-      - DRONE_RPC_SECRET=${DRONE_RPC_SECRET}  #RPC秘钥
+      - DRONE_RPC_SECRET=${DRONE_RPC_SECRET} #RPC秘钥
       - DRONE_SERVER_HOST=${HOST}:8080
       - DRONE_SERVER_PROTO=http
-
+      - DRONE_RUNNER_CAPACITY=2
+      - DRONE_USER_CREATE=username:zhaobu,admin:true #管理员账号，是你想要作为管理员的Gitea用户名
       # droneclient Config
 
       # dronelog
@@ -118,7 +123,7 @@ services:
     depends_on:
       - gitea_server
     networks:
-      - dronenet
+      dronenet:
 
   drone_agent:
     image: drone/agent:latest
@@ -131,20 +136,21 @@ services:
     environment:
       - DRONE_RPC_PROTO=http
       - DRONE_RPC_HOST=drone_server
-      - DRONE_RPC_SECRET=${DRONE_RPC_SECRET}  #RPC秘钥，要与drone_server中的一致
+      - DRONE_RPC_SECRET=${DRONE_RPC_SECRET} #RPC秘钥，要与drone_server中的一致
       - DRONE_RUNNER_CAPACITY=3
       - DRONE_LOGS_TRACE=true
       - DRONE_LOGS_DEBUG=true
+      - DRONE_UI_USERNAME=root
+      - DRONE_UI_PASSWORD=root
     networks:
-      - dronenet
-      
-# docker 可视化管理
-  portainer:                         
-    image: portainer/portainer:latest
-    container_name: portainer
-    restart: always
-    ports:         
-      - 9910:9000                              
-    volumes:                                     
-      - /var/run/docker.sock:/var/run/docker.sock      
-      - portainerdata:/data
+      dronenet:
+  # docker 可视化管理
+  # portainer:
+  #   image: portainer/portainer:latest
+  #   container_name: portainer
+  #   restart: always
+  #   ports:
+  #     - 9910:9000
+  #   volumes:
+  #     - /var/run/docker.sock:/var/run/docker.sock
+  #     - portainerdata:/data
