@@ -8,6 +8,7 @@ networks:
 #     name: portainerdata
 
 services:
+  # 使用nginx做反向代理
   # nginx:
   #   image: nginx:alpine
   #   container_name: drone_nginx
