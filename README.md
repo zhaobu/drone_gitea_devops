@@ -330,3 +330,7 @@ services:
 - [容器环境下的持续集成最佳实践](https://www.cnblogs.com/jasonzhuo/articles/10645372.html)
 
 + [嘿,我用Drone做CI](https://juejin.im/post/5df0801c5188251257286699)
+
+
+如果觉得有用，可随意赞赏
+![赞赏码](https://cdn.jsdelivr.net/gh/zhaobu/imagebed/yuque/20191227110733.png "赞赏")
