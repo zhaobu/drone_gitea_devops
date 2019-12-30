@@ -42,7 +42,7 @@ services:
       - DB_HOST=gitea_postgres:5432
       - DB_USER=${POSTGRES_USER}
       - DB_NAME=${POSTGRES_DB}
-      - DB_PASSWD={POSTGRES_PASSWORD}
+      - DB_PASSWD=${POSTGRES_PASSWORD}
       - APP_NAME="DROG (gitea + drone) test"
       # this exposes to end users
       - ROOT_URL=http://${HOST}:3000

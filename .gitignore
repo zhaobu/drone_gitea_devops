@@ -14,3 +14,4 @@
 drone_mysql/data
 gitea_postgres/data
 gitea_server/data
+gitea_postgres_old
