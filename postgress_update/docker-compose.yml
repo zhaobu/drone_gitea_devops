@@ -1,29 +1,14 @@
 version: "3.7"
 
 services:
-  postgres_update:
-    image: tianon/postgres-upgrade:11-to-12
-    container_name: postgres_update
+  # gitea 可以用postgres也可以用mysql
+  gitea_postgres:
+    image: postgres:alpine
+    ports:
+      - 5432:5432
+    restart: always
+    container_name: gitea_postgres
     volumes:
-      - /home/docker/drone_gitea_devops/gitea_postgres_old/data:/var/lib/postgresql/11/data
-      - /home/docker/drone_gitea_devops/gitea_postgres/data:/var/lib/postgresql/12/data
-    tty: true
-    environment:
-      - PGUSER=gitea
-      - POSTGRES_INITDB_ARGS="-U gitea"
-  # postgres_update:
-  #   image: postgres:alpine
-  #   container_name: postgres_update
-  #   # restart: always
-  #   volumes:
-  #     # - ../gitea_postgres_old/bin:/usr/local/binold
-  #     # - ../gitea_postgres_old/share:/usr/local/share/postgresqlold/
-  #     # - ../gitea_postgres_old/data:/var/lib/postgresql/dataold
-  #     - ../gitea_postgres/data:/var/lib/postgresql/data
-  #   command: ["bash"]
-  #   tty: true
-  #   env_file: ../.env
-  #   environment:
-  #     - POSTGRES_USER=${POSTGRES_USER}
-  #     - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-  #     - POSTGRES_DB=${POSTGRES_DB}
+      - ../gitea_postgres/data:/var/lib/postgresql/data
+      - ./docker-entrypoint-initdb.d/:/docker-entrypoint-initdb.d/
+    env_file: ../.env
