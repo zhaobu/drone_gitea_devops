@@ -8,9 +8,10 @@ networks:
 #     name: portainerdata
 
 services:
-  v2ray_caddy:
+  # 使用caddy做反向代理
+  caddy:
     image: abiosoft/caddy
-    container_name: v2ray_caddy
+    container_name: caddy
     restart: always
     ports:
       - 80:80
@@ -30,7 +31,7 @@ services:
   # 使用nginx做反向代理
   # nginx:
   #   image: nginx:alpine
-  #   container_name: drone_nginx
+  #   container_name: nginx
   #   ports:
   #     - "80:80"
   #     - "443:443"
