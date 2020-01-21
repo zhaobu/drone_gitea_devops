@@ -8,30 +8,53 @@ networks:
 #     name: portainerdata
 
 services:
+  v2ray_caddy:
+    image: abiosoft/caddy
+    container_name: v2ray_caddy
+    restart: always
+    ports:
+      - 80:80
+      - 443:443
+    networks:
+      - dronenet
+    volumes:
+      - ./caddy/Caddyfile.conf:/etc/Caddyfile
+      - ./caddy/.caddy:/root/.caddy
+      - ./caddy/log:/srv/
+      - ./caddy/www:/var/www/html
+      - /etc/localtime:/etc/localtime
+    environment:
+      ACME_AGREE: "true"
+    command: ["--conf=/etc/Caddyfile", "--log=stdout", "-agree"]
+
   # 使用nginx做反向代理
   # nginx:
   #   image: nginx:alpine
   #   container_name: drone_nginx
   #   ports:
-  #     - "8080:80"
+  #     - "80:80"
+  #     - "443:443"
   #   restart: always
   #   networks:
   #     - dronenet
   #   volumes:
   #     - ./nginx/conf:/etc/nginx/conf.d:rw
+  #     - ./nginx/cert:/etc/nginx/cert:rw
   #     - ./nginx/nginx.conf:/etc/nginx/nginx.conf
   #     - ./nginx/hosts:/etc/hosts:rw
+  #     - ./nginx/log/:/var/log/nginx/:rw
 
   # gitea 服务
   gitea_server:
     image: gitea/gitea:latest
-    ports:
-      - 3000:3000
+    # ports:
+      # - 3000:3000
       # 必须映射22端口,不然只能使用http cloen仓库
-      - "3022:22"
+      # - "3022:22"
     volumes:
       - ./gitea_server/data:/data
       - ./gitea_server/conf/app.ini:/data/gitea/conf/app.ini
+      - ./gitea_server/conf/cert/:/data/gitea/cert
     restart: always
     container_name: gitea_server
     environment:

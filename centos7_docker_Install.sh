@@ -28,10 +28,10 @@ curl -L "https://github.com/docker/compose/releases/download/1.24.1/docker-compo
 chmod +x /usr/local/bin/docker-compose
 
 #update git
-yum install -y "https://centos7.iuscommunity.org/ius-release.rpm"
-yum erase -y git
-yum install -y epel-release 
-yum install -y git2u
+#yum install -y "https://centos7.iuscommunity.org/ius-release.rpm"
+#yum erase -y git
+#yum install -y epel-release 
+#yum install -y git2u
 
 
 # systemctl restart docker
