@@ -24,7 +24,7 @@ sed -i 's+download.docker.com+mirrors.tuna.tsinghua.edu.cn/docker-ce+' /etc/yum.
 yum makecache fast
 yum install -y docker-ce docker-ce-cli containerd.io
 # install docker-compose
-curl -L "https://github.com/docker/compose/releases/download/1.24.1/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+curl -L "https://github.com/docker/compose/releases/download/1.25.4/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
 chmod +x /usr/local/bin/docker-compose
 
 #update git
@@ -33,7 +33,9 @@ chmod +x /usr/local/bin/docker-compose
 #yum install -y epel-release 
 #yum install -y git2u
 
+# 配置加速器
+curl -sSL https://get.daocloud.io/daotools/set_mirror.sh | sh -s http://f1361db2.m.daocloud.io
 
-# systemctl restart docker
+systemctl restart docker
 
 
